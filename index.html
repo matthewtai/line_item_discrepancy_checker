@@ -1,0 +1,645 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Clio Line Item Discrepancy Checker</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
+            line-height: 1.6;
+            color: #333;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f7fa;
+        }
+        
+        h1 {
+            color: #2c3e50;
+            margin-bottom: 20px;
+            text-align: center;
+        }
+        
+        .container {
+            background-color: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+        
+        #jsonInput {
+            width: 100%;
+            height: 150px;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-family: monospace;
+            margin-bottom: 15px;
+            resize: vertical;
+        }
+        
+        .button-group {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+        
+        button {
+            background-color: #3498db;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            padding: 10px 15px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: background-color 0.2s;
+        }
+        
+        button:hover {
+            background-color: #2980b9;
+        }
+        
+        button.clear {
+            background-color: #e74c3c;
+        }
+        
+        button.clear:hover {
+            background-color: #c0392b;
+        }
+        
+        button.sample {
+            background-color: #2ecc71;
+        }
+        
+        button.sample:hover {
+            background-color: #27ae60;
+        }
+        
+        #results {
+            display: none;
+        }
+        
+        .summary {
+            margin-bottom: 20px;
+            padding: 15px;
+            background-color: #f8f9fa;
+            border-radius: 4px;
+            border-left: 4px solid #3498db;
+        }
+        
+        .discrepancy-list {
+            border-collapse: collapse;
+            width: 100%;
+        }
+        
+        .discrepancy-list th, .discrepancy-list td {
+            border: 1px solid #ddd;
+            padding: 10px;
+            text-align: left;
+        }
+        
+        .discrepancy-list th {
+            background-color: #f2f2f2;
+            position: sticky;
+            top: 0;
+        }
+        
+        .discrepancy-list tr:nth-child(even) {
+            background-color: #f9f9f9;
+        }
+        
+        .discrepancy-list tr:hover {
+            background-color: #f1f8ff;
+        }
+        
+        .highlighted {
+            background-color: #ffecb3 !important;
+        }
+        
+        .no-discrepancies {
+            padding: 20px;
+            text-align: center;
+            color: #2ecc71;
+            font-weight: bold;
+        }
+        
+        .spinner {
+            border: 4px solid rgba(0, 0, 0, 0.1);
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            border-left-color: #3498db;
+            animation: spin 1s linear infinite;
+            margin: 20px auto;
+            display: none;
+        }
+        
+        @keyframes spin {
+            0% {
+                transform: rotate(0deg);
+            }
+            100% {
+                transform: rotate(360deg);
+            }
+        }
+        
+        #allRecordsContainer {
+            margin-top: 30px;
+            display: none;
+        }
+        
+        .tabs {
+            display: flex;
+            border-bottom: 1px solid #ddd;
+            margin-bottom: 20px;
+        }
+        
+        .tab {
+            padding: 10px 20px;
+            cursor: pointer;
+            border: 1px solid transparent;
+            border-bottom: none;
+            border-radius: 4px 4px 0 0;
+            margin-right: 5px;
+        }
+        
+        .tab.active {
+            background-color: white;
+            border-color: #ddd;
+            color: #3498db;
+            font-weight: bold;
+        }
+        
+        .tab-content {
+            display: none;
+            width: 100%;
+        }
+        
+        .tab-content.active {
+            display: block;
+        }
+        
+        #allRecordsTab {
+            width: 100%;
+        }
+        
+        .error {
+            color: #e74c3c;
+            background-color: #fde8e7;
+            padding: 10px;
+            border-radius: 4px;
+            margin-bottom: 15px;
+            display: none;
+        }
+        
+        .file-input-container {
+            margin-bottom: 15px;
+        }
+        
+        .export-btn {
+            background-color: #95a5a6;
+            margin-left: auto;
+        }
+        
+        .export-btn:hover {
+            background-color: #7f8c8d;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Clio Line Item Discrepancy Checker</h1>
+        
+        <div class="disclaimer" style="background-color: #e3f2fd; padding: 15px; border-radius: 6px; margin-bottom: 20px; border-left: 4px solid #2196f3;">
+            <strong>How to get your data:</strong> Do a bulk request to <code>api/v4/line_items?fields=id,price,quantity,bill,total,activity{id,matter,price,quantity,total}</code> to grab all existing line items.
+        </div>
+        
+        <div class="file-input-container">
+            <label for="jsonFile">Upload JSON File:</label>
+            <input type="file" id="jsonFile" accept=".json">
+        </div>
+        
+        <div id="error" class="error"></div>
+        
+        <textarea id="jsonInput" placeholder="Paste your Clio JSON data here or upload a file above..."></textarea>
+        
+        <div class="button-group">
+            <button id="analyzeBtn">Analyze Data</button>
+            <button id="loadSampleBtn" class="sample">Load Sample Data</button>
+            <button id="clearBtn" class="clear">Clear</button>
+            <button id="exportBtn" class="export-btn">Export Results (CSV)</button>
+        </div>
+        
+        <div id="spinner" class="spinner"></div>
+    </div>
+
+    <div id="results" class="container">
+        <div class="tabs">
+            <div class="tab active" data-tab="discrepancies">Discrepancies</div>
+            <div class="tab" data-tab="all-records">All Records</div>
+        </div>
+        
+        <div id="discrepanciesTab" class="tab-content active">
+            <div class="summary">
+                <p id="discrepancySummary">Loading summary...</p>
+            </div>
+            
+            <div id="discrepancyTableContainer">
+                <table class="discrepancy-list">
+                    <thead>
+                        <tr>
+                            <th>Line Item ID</th>
+                            <th>Activity ID</th>
+                            <th>Bill Number</th>
+                            <th>Bill State</th>
+                            <th>Matter</th>
+                            <th>Line Item Price</th>
+                            <th>Line Item Quantity</th>
+                            <th>Line Item Total</th>
+                            <th>Activity Total</th>
+                            <th>Difference</th>
+                        </tr>
+                    </thead>
+                    <tbody id="discrepancyList">
+                        <!-- Discrepancy results will be populated here -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+        
+        <div id="allRecordsTab" class="tab-content">
+            <div class="summary">
+                <p id="recordsSummary">Loading summary...</p>
+            </div>
+            
+            <div id="allRecordsTableContainer">
+                <table class="discrepancy-list">
+                    <thead>
+                        <tr>
+                            <th>Line Item ID</th>
+                            <th>Activity ID</th>
+                            <th>Bill Number</th>
+                            <th>Bill State</th>
+                            <th>Matter</th>
+                            <th>Line Item Price</th>
+                            <th>Line Item Quantity</th>
+                            <th>Line Item Total</th>
+                            <th>Activity Total</th>
+                            <th>Difference</th>
+                        </tr>
+                    </thead>
+                    <tbody id="allRecordsList">
+                        <!-- All records will be populated here -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // DOM Elements
+        const jsonInput = document.getElementById('jsonInput');
+        const jsonFile = document.getElementById('jsonFile');
+        const analyzeBtn = document.getElementById('analyzeBtn');
+        const loadSampleBtn = document.getElementById('loadSampleBtn');
+        const clearBtn = document.getElementById('clearBtn');
+        const exportBtn = document.getElementById('exportBtn');
+        const discrepancyList = document.getElementById('discrepancyList');
+        const allRecordsList = document.getElementById('allRecordsList');
+        const discrepancySummary = document.getElementById('discrepancySummary');
+        const recordsSummary = document.getElementById('recordsSummary');
+        const results = document.getElementById('results');
+        const spinner = document.getElementById('spinner');
+        const errorElement = document.getElementById('error');
+        const tabs = document.querySelectorAll('.tab');
+        const tabContents = document.querySelectorAll('.tab-content');
+
+        // Sample data
+        const sampleData = {
+            "meta": {
+                "records": 20
+            },
+            "data": [
+                {
+                    "id": 2829341089,
+                    "price": 300,
+                    "quantity": 1,
+                    "bill": {
+                        "id": 434541169,
+                        "number": "1",
+                        "state": "paid"
+                    },
+                    "total": 255,
+                    "activity": {
+                        "id": 2366753629,
+                        "matter": {
+                            "id": 1290853849,
+                            "display_number": "00001-Client 1"
+                        },
+                        "price": 300,
+                        "quantity": 3600,
+                        "total": 300
+                    }
+                },
+                {
+                    "id": 2829341104,
+                    "price": 300,
+                    "quantity": 1,
+                    "bill": {
+                        "id": 434541169,
+                        "number": "1",
+                        "state": "paid"
+                    },
+                    "total": 300,
+                    "activity": {
+                        "id": 2366753794,
+                        "matter": {
+                            "id": 1290853849,
+                            "display_number": "00001-Client 1"
+                        },
+                        "price": 300,
+                        "quantity": 3600,
+                        "total": 300
+                    }
+                }
+            ]
+        };
+
+        // Event Listeners
+        analyzeBtn.addEventListener('click', analyzeData);
+        loadSampleBtn.addEventListener('click', loadSampleData);
+        clearBtn.addEventListener('click', clearData);
+        exportBtn.addEventListener('click', exportToCSV);
+        jsonFile.addEventListener('change', handleFileUpload);
+
+        // Tab functionality
+        tabs.forEach(tab => {
+            tab.addEventListener('click', () => {
+                // Remove active class from all tabs and tab contents
+                tabs.forEach(t => t.classList.remove('active'));
+                tabContents.forEach(c => c.classList.remove('active'));
+                
+                // Add active class to clicked tab
+                tab.classList.add('active');
+                
+                // Show corresponding content
+                const tabName = tab.getAttribute('data-tab');
+                const tabContent = document.getElementById(`${tabName}Tab`);
+                if (tabContent) {
+                    tabContent.classList.add('active');
+                    // Ensure all records section is visible when its tab is active
+                    if (tabName === 'all-records') {
+                        tabContent.style.display = 'block';
+                    }
+                } else {
+                    console.error(`Tab content ${tabName}Tab not found`);
+                }
+            });
+        });
+
+        function handleFileUpload(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+            
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                try {
+                    // Try to parse as JSON to validate
+                    JSON.parse(e.target.result);
+                    jsonInput.value = e.target.result;
+                    hideError();
+                } catch (err) {
+                    showError("Invalid JSON file. Please check the file format.");
+                }
+            };
+            reader.onerror = function() {
+                showError("Error reading file.");
+            };
+            reader.readAsText(file);
+        }
+
+        function loadSampleData() {
+            jsonInput.value = JSON.stringify(sampleData, null, 2);
+            hideError();
+        }
+
+        function clearData() {
+            jsonInput.value = '';
+            discrepancyList.innerHTML = '';
+            allRecordsList.innerHTML = '';
+            results.style.display = 'none';
+            hideError();
+            jsonFile.value = '';
+        }
+
+        function showError(message) {
+            errorElement.textContent = message;
+            errorElement.style.display = 'block';
+        }
+
+        function hideError() {
+            errorElement.style.display = 'none';
+        }
+
+        function analyzeData() {
+            // Clear previous results
+            discrepancyList.innerHTML = '';
+            allRecordsList.innerHTML = '';
+            
+            // Show spinner
+            spinner.style.display = 'block';
+            hideError();
+            
+            // Get JSON data
+            const jsonData = jsonInput.value.trim();
+            if (!jsonData) {
+                spinner.style.display = 'none';
+                showError("Please enter JSON data or upload a file.");
+                return;
+            }
+            
+            // Parse JSON
+            let data;
+            try {
+                data = JSON.parse(jsonData);
+            } catch (error) {
+                spinner.style.display = 'none';
+                showError("Invalid JSON. Please check your data format.");
+                return;
+            }
+            
+            // Check if data has the expected structure
+            if (!data.data || !Array.isArray(data.data)) {
+                spinner.style.display = 'none';
+                showError("Invalid JSON structure. Expected a 'data' array.");
+                return;
+            }
+            
+            // Process data asynchronously to avoid blocking UI
+            setTimeout(() => {
+                processData(data);
+                spinner.style.display = 'none';
+                results.style.display = 'block';
+            }, 100);
+        }
+
+        function processData(data) {
+            const records = data.data;
+            const discrepancies = [];
+            
+            // Clear previous results
+            discrepancyList.innerHTML = '';
+            allRecordsList.innerHTML = '';
+            
+            // Process each record
+            records.forEach(record => {
+                try {
+                    const lineItemTotal = record.total;
+                    const activityTotal = record.activity ? record.activity.total : 0;
+                    const difference = Math.abs(lineItemTotal - activityTotal);
+                    
+                    // Check if there's a discrepancy
+                    const hasDiscrepancy = lineItemTotal !== activityTotal;
+                    
+                    // Format data for display
+                    const recordData = {
+                        id: record.id,
+                        activityId: record.activity ? record.activity.id : 'N/A',
+                        billNumber: record.bill ? record.bill.number : 'N/A',
+                        billState: record.bill ? record.bill.state : 'N/A',
+                        matter: record.activity && record.activity.matter ? record.activity.matter.display_number : 'N/A',
+                        price: record.price,
+                        quantity: record.quantity,
+                        lineItemTotal: lineItemTotal,
+                        activityTotal: activityTotal,
+                        difference: difference,
+                        hasDiscrepancy: hasDiscrepancy
+                    };
+                    
+                    // Add to all records table FIRST
+                    addRecordToTable(allRecordsList, recordData);
+                    
+                    // Add to discrepancies if there's a mismatch
+                    if (hasDiscrepancy) {
+                        discrepancies.push(recordData);
+                    }
+                } catch (error) {
+                    console.error("Error processing record:", error, record);
+                }
+            });
+            
+            // Update summaries
+            updateSummaries(discrepancies, records);
+            
+            // Sort discrepancies by difference (largest first)
+            discrepancies.sort((a, b) => b.difference - a.difference);
+            
+            // Add discrepancies to discrepancy table
+            discrepancies.forEach(discrepancy => {
+                addRecordToTable(discrepancyList, discrepancy);
+            });
+            
+            // Display message if no discrepancies found
+            if (discrepancies.length === 0) {
+                discrepancyList.innerHTML = '<tr><td colspan="10" class="no-discrepancies">No discrepancies found. All records match.</td></tr>';
+            }
+            
+            // Make sure both tabs are properly initialized
+            document.getElementById('discrepanciesTab').classList.add('active');
+            document.getElementById('allRecordsTab').classList.remove('active');
+            document.querySelector('.tab[data-tab="discrepancies"]').classList.add('active');
+            document.querySelector('.tab[data-tab="all-records"]').classList.remove('active');
+        }
+
+        function updateSummaries(discrepancies, allRecords) {
+            const totalRecords = allRecords.length;
+            const discrepancyCount = discrepancies.length;
+            const discrepancyPercent = totalRecords > 0 ? ((discrepancyCount / totalRecords) * 100).toFixed(2) : 0;
+            
+            const totalAffected = discrepancies.reduce((sum, record) => sum + record.difference, 0);
+            
+            discrepancySummary.innerHTML = `
+                <strong>${discrepancyCount}</strong> discrepancies found out of <strong>${totalRecords}</strong> records (${discrepancyPercent}%).<br>
+                Total difference amount: <strong>$${totalAffected.toFixed(2)}</strong>
+            `;
+            
+            recordsSummary.innerHTML = `
+                <strong>${totalRecords}</strong> total records analyzed.<br>
+                <strong>${discrepancyCount}</strong> records (${discrepancyPercent}%) have discrepancies between line item total and activity total.
+            `;
+        }
+
+        function addRecordToTable(tableBody, record) {
+            const row = document.createElement('tr');
+            if (record.hasDiscrepancy) {
+                row.classList.add('highlighted');
+            }
+            
+            row.innerHTML = `
+                <td>${record.id}</td>
+                <td>${record.activityId}</td>
+                <td>${record.billNumber}</td>
+                <td>${record.billState}</td>
+                <td>${record.matter}</td>
+                <td>${record.price.toFixed(2)}</td>
+                <td>${record.quantity}</td>
+                <td>${record.lineItemTotal.toFixed(2)}</td>
+                <td>${record.activityTotal.toFixed(2)}</td>
+                <td>${record.difference.toFixed(2)}</td>
+            `;
+            
+            tableBody.appendChild(row);
+        }
+
+        function exportToCSV() {
+            // Determine which tab is active
+            const activeTab = document.querySelector('.tab.active').getAttribute('data-tab');
+            const tableBody = activeTab === 'discrepancies' ? discrepancyList : allRecordsList;
+            const fileName = activeTab === 'discrepancies' ? 'clio-discrepancies.csv' : 'clio-all-records.csv';
+            
+            // Create CSV header
+            let csv = 'Line Item ID,Activity ID,Bill Number,Bill State,Matter,Line Item Price,Line Item Quantity,Line Item Total,Activity Total,Difference\n';
+            
+            // Get all rows from the table
+            const rows = tableBody.querySelectorAll('tr');
+            
+            // Convert each row to CSV
+            rows.forEach(row => {
+                // Get all cells in the row
+                const cells = row.querySelectorAll('td');
+                
+                // Check if this is a "no discrepancies" message row
+                if (cells.length === 1 && cells[0].classList.contains('no-discrepancies')) {
+                    return; // Skip this row
+                }
+                
+                // Get text from each cell and add to CSV
+                const rowData = Array.from(cells).map(cell => {
+                    // Remove $ signs and commas for numeric values
+                    let text = cell.textContent.trim();
+                    if (text.startsWith('$')) {
+                        text = text.substring(1);
+                    }
+                    // Quote the text to handle commas
+                    return `"${text}"`;
+                }).join(',');
+                
+                csv += rowData + '\n';
+            });
+            
+            // Create blob and download
+            const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.setAttribute('href', url);
+            link.setAttribute('download', fileName);
+            link.style.visibility = 'hidden';
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        }
+    </script>
+</body>
+</html>

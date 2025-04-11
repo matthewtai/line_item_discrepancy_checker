@@ -386,15 +386,23 @@
                 
                 // Show corresponding content
                 const tabName = tab.getAttribute('data-tab');
-                const tabContent = document.getElementById(`${tabName}Tab`);
+                
+                // Map hyphenated tab names to camelCase IDs
+                let tabContentId;
+                if (tabName === 'all-records') {
+                    tabContentId = 'allRecordsTab';
+                } else {
+                    tabContentId = `${tabName}Tab`;
+                }
+                
+                const tabContent = document.getElementById(tabContentId);
                 if (tabContent) {
                     tabContent.classList.add('active');
-                    // Ensure all records section is visible when its tab is active
                     if (tabName === 'all-records') {
                         tabContent.style.display = 'block';
                     }
                 } else {
-                    console.error(`Tab content ${tabName}Tab not found`);
+                    console.error(`Tab content ${tabContentId} not found`);
                 }
             });
         });

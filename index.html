@@ -3,650 +3,747 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Clio Line Item Discrepancy Checker</title>
+    <title>Line Item Discrepancy Checker</title>
     <style>
         body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
+            font-family: Arial, sans-serif;
             line-height: 1.6;
+            margin: 0;
+            padding: 20px;
             color: #333;
+        }
+        h1, h2 {
+            color: #2c3e50;
+        }
+        .container {
             max-width: 1200px;
             margin: 0 auto;
-            padding: 20px;
-            background-color: #f5f7fa;
         }
-        
-        h1 {
-            color: #2c3e50;
-            margin-bottom: 20px;
-            text-align: center;
-        }
-        
-        .container {
-            background-color: white;
-            border-radius: 8px;
-            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
-            padding: 20px;
+        .input-area {
             margin-bottom: 20px;
         }
-        
         #jsonInput {
             width: 100%;
-            height: 150px;
+            height: 200px;
             padding: 10px;
             border: 1px solid #ddd;
             border-radius: 4px;
             font-family: monospace;
-            margin-bottom: 15px;
             resize: vertical;
         }
-        
-        .button-group {
-            display: flex;
-            gap: 10px;
-            margin-bottom: 20px;
-        }
-        
         button {
             background-color: #3498db;
             color: white;
             border: none;
-            border-radius: 4px;
             padding: 10px 15px;
+            border-radius: 4px;
             cursor: pointer;
-            font-size: 14px;
-            transition: background-color 0.2s;
+            font-size: 16px;
+            transition: background-color 0.3s;
         }
-        
         button:hover {
             background-color: #2980b9;
         }
-        
-        button.clear {
-            background-color: #e74c3c;
-        }
-        
-        button.clear:hover {
-            background-color: #c0392b;
-        }
-        
-        button.sample {
-            background-color: #2ecc71;
-        }
-        
-        button.sample:hover {
-            background-color: #27ae60;
-        }
-        
         #results {
-            display: none;
+            margin-top: 20px;
         }
-        
-        .summary {
-            margin-bottom: 20px;
-            padding: 15px;
+        .results-summary {
             background-color: #f8f9fa;
+            padding: 15px;
             border-radius: 4px;
-            border-left: 4px solid #3498db;
+            margin-bottom: 20px;
         }
-        
-        .discrepancy-list {
-            border-collapse: collapse;
+        .discrepancy-table {
             width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
         }
-        
-        .discrepancy-list th, .discrepancy-list td {
+        .discrepancy-table th, .discrepancy-table td {
             border: 1px solid #ddd;
-            padding: 10px;
+            padding: 12px;
             text-align: left;
         }
-        
-        .discrepancy-list th {
+        .discrepancy-table th {
             background-color: #f2f2f2;
             position: sticky;
             top: 0;
         }
-        
-        .discrepancy-list tr:nth-child(even) {
-            background-color: #f9f9f9;
+        .discrepancy-table tbody tr:nth-child(even) {
+            background-color: #f8f9fa;
         }
-        
-        .discrepancy-list tr:hover {
-            background-color: #f1f8ff;
+        .discrepancy-table tbody tr:hover {
+            background-color: #e9f7fe;
         }
-        
-        .highlighted {
-            background-color: #ffecb3 !important;
+        .highlight {
+            background-color: #fff3cd;
+            padding: 2px 4px;
+            border-radius: 3px;
         }
-        
-        .no-discrepancies {
-            padding: 20px;
+        .status-indicator {
+            display: inline-block;
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            margin-right: 5px;
+        }
+        .status-paid {
+            background-color: #28a745;
+        }
+        .status-awaiting {
+            background-color: #ffc107;
+        }
+        .status-deleted {
+            background-color: #dc3545;
+        }
+        .status-void {
+            background-color: #6c757d;
+        }
+        .status-draft {
+            background-color: #17a2b8;
+        }
+        #loader {
+            display: none;
             text-align: center;
-            color: #2ecc71;
-            font-weight: bold;
+            padding: 20px;
         }
-        
         .spinner {
             border: 4px solid rgba(0, 0, 0, 0.1);
             width: 36px;
             height: 36px;
             border-radius: 50%;
-            border-left-color: #3498db;
+            border-left-color: #09f;
             animation: spin 1s linear infinite;
-            margin: 20px auto;
-            display: none;
+            margin: 0 auto;
         }
-        
         @keyframes spin {
-            0% {
-                transform: rotate(0deg);
-            }
-            100% {
-                transform: rotate(360deg);
-            }
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
         }
-        
-        #allRecordsContainer {
-            margin-top: 30px;
-            display: none;
-        }
-        
-        .tabs {
-            display: flex;
-            border-bottom: 1px solid #ddd;
-            margin-bottom: 20px;
-        }
-        
         .tab {
-            padding: 10px 20px;
-            cursor: pointer;
-            border: 1px solid transparent;
-            border-bottom: none;
+            overflow: hidden;
+            border: 1px solid #ccc;
+            background-color: #f1f1f1;
             border-radius: 4px 4px 0 0;
-            margin-right: 5px;
         }
-        
-        .tab.active {
-            background-color: white;
-            border-color: #ddd;
-            color: #3498db;
-            font-weight: bold;
+        .tab button {
+            background-color: inherit;
+            float: left;
+            border: none;
+            outline: none;
+            cursor: pointer;
+            padding: 14px 16px;
+            transition: 0.3s;
+            font-size: 16px;
+            color: #555;
         }
-        
-        .tab-content {
+        .tab button:hover {
+            background-color: #ddd;
+        }
+        .tab button.active {
+            background-color: #3498db;
+            color: white;
+        }
+        .tabcontent {
             display: none;
-            width: 100%;
+            padding: 20px;
+            border: 1px solid #ccc;
+            border-top: none;
+            border-radius: 0 0 4px 4px;
+            animation: fadeEffect 1s;
         }
-        
-        .tab-content.active {
-            display: block;
+        @keyframes fadeEffect {
+            from {opacity: 0;}
+            to {opacity: 1;}
         }
-        
-        #allRecordsTab {
-            width: 100%;
+        .export-buttons {
+            margin-top: 20px;
+            margin-bottom: 10px;
         }
-        
+        #dataViewer {
+            max-height: 600px;
+            overflow-y: auto;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            margin-top: 10px;
+        }
         .error {
-            color: #e74c3c;
-            background-color: #fde8e7;
+            color: #dc3545;
+            background-color: #f8d7da;
+            border: 1px solid #f5c6cb;
             padding: 10px;
             border-radius: 4px;
-            margin-bottom: 15px;
-            display: none;
+            margin-top: 10px;
         }
-        
-        .file-input-container {
-            margin-bottom: 15px;
+        .success {
+            color: #28a745;
+            background-color: #d4edda;
+            border: 1px solid #c3e6cb;
+            padding: 10px;
+            border-radius: 4px;
+            margin-top: 10px;
         }
-        
-        .export-btn {
-            background-color: #95a5a6;
-            margin-left: auto;
+        .money-positive {
+            color: #28a745;
         }
-        
-        .export-btn:hover {
-            background-color: #7f8c8d;
+        .money-negative {
+            color: #dc3545;
+        }
+        #jsonExample {
+            cursor: pointer;
+            color: #3498db;
+            text-decoration: underline;
+        }
+        .bill-info {
+            display: inline-block;
+            padding: 3px 8px;
+            border-radius: 4px;
+            margin-right: 5px;
+            font-size: 0.9em;
         }
     </style>
 </head>
 <body>
     <div class="container">
-        <h1>Clio Line Item Discrepancy Checker</h1>
+        <h1>Line Item Discrepancy Checker</h1>
+        <p>This tool helps you identify records where there's a discrepancy between <code>line_item.sub_total</code> and <code>line_item_activity.total</code>.</p>
+        <p><strong>Note:</strong> Records with bill states of "deleted" or "void" are excluded from discrepancy analysis.</p>
         
-        <div class="disclaimer" style="background-color: #e3f2fd; padding: 15px; border-radius: 6px; margin-bottom: 20px; border-left: 4px solid #2196f3;">
-            <strong>How to get your data:</strong> Make a bulk request to <code>api/v4/line_items?fields=id,price,quantity,bill,total,activity{id,matter,price,quantity,total}</code> to grab all existing line items.
+        <div class="results-summary">
+            <p><strong>How to get your data:</strong> Make a bulk request to <code>api/v4/line_items?fields=id,price,quantity,bill{id,number,state,type},sub_total,total,activity{id,matter{id},price,quantity,total}</code> to grab all existing line items.</p>
         </div>
         
-        <div class="file-input-container">
-            <label for="jsonFile">Upload JSON File:</label>
-            <input type="file" id="jsonFile" accept=".json">
+        <div class="input-area">
+            <h2>Input JSON Data</h2>
+            <p>Paste your JSON data below or <span id="jsonExample">use the example data</span>.</p>
+            <textarea id="jsonInput" placeholder="Paste your JSON data here..."></textarea>
+            <div id="jsonError" class="error" style="display: none;"></div>
+            
+            <div style="margin-top: 10px;">
+                <button id="analyzeBtn">Analyze Data</button>
+                <button id="clearBtn">Clear</button>
+            </div>
         </div>
         
-        <div id="error" class="error"></div>
-        
-        <textarea id="jsonInput" placeholder="Paste your Clio JSON data here or upload a file above..."></textarea>
-        
-        <div class="button-group">
-            <button id="analyzeBtn">Analyze Data</button>
-            <button id="loadSampleBtn" class="sample">Load Sample Data</button>
-            <button id="clearBtn" class="clear">Clear</button>
-            <button id="exportBtn" class="export-btn">Export Results (CSV)</button>
+        <div id="loader">
+            <div class="spinner"></div>
+            <p>Analyzing data...</p>
         </div>
         
-        <div id="spinner" class="spinner"></div>
-    </div>
-
-    <div id="results" class="container">
-        <div class="tabs">
-            <div class="tab active" data-tab="discrepancies">Discrepancies</div>
-            <div class="tab" data-tab="all-records">All Records</div>
-        </div>
-        
-        <div id="discrepanciesTab" class="tab-content active">
-            <div class="summary">
-                <p id="discrepancySummary">Loading summary...</p>
+        <div id="results" style="display: none;">
+            <div class="tab">
+                <button class="tablinks active" onclick="openTab(event, 'discrepancyTab')">Discrepancies</button>
+                <button class="tablinks" onclick="openTab(event, 'allDataTab')">All Records</button>
+                <button class="tablinks" onclick="openTab(event, 'summaryTab')">Summary</button>
             </div>
             
-            <div id="discrepancyTableContainer">
-                <table class="discrepancy-list">
-                    <thead>
-                        <tr>
-                            <th>Line Item ID</th>
-                            <th>Activity ID</th>
-                            <th>Bill Number</th>
-                            <th>Bill State</th>
-                            <th>Matter</th>
-                            <th>Line Item Price</th>
-                            <th>Line Item Quantity</th>
-                            <th>Line Item Total</th>
-                            <th>Activity Total</th>
-                            <th>Difference</th>
-                        </tr>
-                    </thead>
-                    <tbody id="discrepancyList">
-                        <!-- Discrepancy results will be populated here -->
-                    </tbody>
-                </table>
-            </div>
-        </div>
-        
-        <div id="allRecordsTab" class="tab-content">
-            <div class="summary">
-                <p id="recordsSummary">Loading summary...</p>
+            <div id="discrepancyTab" class="tabcontent" style="display: block;">
+                <div class="results-summary" id="discrepancySummary"></div>
+                <div class="export-buttons">
+                    <button id="exportDiscrepanciesCSV">Export to CSV</button>
+                    <button id="exportDiscrepanciesJSON">Export to JSON</button>
+                </div>
+                <div id="discrepancyResults"></div>
             </div>
             
-            <div id="allRecordsTableContainer">
-                <table class="discrepancy-list">
-                    <thead>
-                        <tr>
-                            <th>Line Item ID</th>
-                            <th>Activity ID</th>
-                            <th>Bill Number</th>
-                            <th>Bill State</th>
-                            <th>Matter</th>
-                            <th>Line Item Price</th>
-                            <th>Line Item Quantity</th>
-                            <th>Line Item Total</th>
-                            <th>Activity Total</th>
-                            <th>Difference</th>
-                        </tr>
-                    </thead>
-                    <tbody id="allRecordsList">
-                        <!-- All records will be populated here -->
-                    </tbody>
-                </table>
+            <div id="allDataTab" class="tabcontent">
+                <div class="results-summary" id="allDataSummary"></div>
+                <div class="export-buttons">
+                    <button id="exportAllDataCSV">Export to CSV</button>
+                    <button id="exportAllDataJSON">Export to JSON</button>
+                </div>
+                <div id="allDataResults"></div>
+            </div>
+            
+            <div id="summaryTab" class="tabcontent">
+                <div id="summaryContent"></div>
             </div>
         </div>
     </div>
-
+    
     <script>
-        // DOM Elements
-        const jsonInput = document.getElementById('jsonInput');
-        const jsonFile = document.getElementById('jsonFile');
-        const analyzeBtn = document.getElementById('analyzeBtn');
-        const loadSampleBtn = document.getElementById('loadSampleBtn');
-        const clearBtn = document.getElementById('clearBtn');
-        const exportBtn = document.getElementById('exportBtn');
-        const discrepancyList = document.getElementById('discrepancyList');
-        const allRecordsList = document.getElementById('allRecordsList');
-        const discrepancySummary = document.getElementById('discrepancySummary');
-        const recordsSummary = document.getElementById('recordsSummary');
-        const results = document.getElementById('results');
-        const spinner = document.getElementById('spinner');
-        const errorElement = document.getElementById('error');
-        const tabs = document.querySelectorAll('.tab');
-        const tabContents = document.querySelectorAll('.tab-content');
-
-        // Sample data
-        const sampleData = {
-            "meta": {
-                "records": 20
-            },
-            "data": [
-                {
-                    "id": 2829341089,
-                    "price": 300,
-                    "quantity": 1,
-                    "bill": {
-                        "id": 434541169,
-                        "number": "1",
-                        "state": "paid"
-                    },
-                    "total": 255,
-                    "activity": {
-                        "id": 2366753629,
-                        "matter": {
-                            "id": 1290853849,
-                            "display_number": "00001-Client 1"
-                        },
-                        "price": 300,
-                        "quantity": 3600,
-                        "total": 300
-                    }
-                },
-                {
-                    "id": 2829341104,
-                    "price": 300,
-                    "quantity": 1,
-                    "bill": {
-                        "id": 434541169,
-                        "number": "1",
-                        "state": "paid"
-                    },
-                    "total": 300,
-                    "activity": {
-                        "id": 2366753794,
-                        "matter": {
-                            "id": 1290853849,
-                            "display_number": "00001-Client 1"
-                        },
-                        "price": 300,
-                        "quantity": 3600,
-                        "total": 300
-                    }
-                }
-            ]
-        };
-
-        // Event Listeners
-        analyzeBtn.addEventListener('click', analyzeData);
-        loadSampleBtn.addEventListener('click', loadSampleData);
-        clearBtn.addEventListener('click', clearData);
-        exportBtn.addEventListener('click', exportToCSV);
-        jsonFile.addEventListener('change', handleFileUpload);
-
-        // Tab functionality
-        tabs.forEach(tab => {
-            tab.addEventListener('click', () => {
-                // Remove active class from all tabs and tab contents
-                tabs.forEach(t => t.classList.remove('active'));
-                tabContents.forEach(c => c.classList.remove('active'));
-                
-                // Add active class to clicked tab
-                tab.classList.add('active');
-                
-                // Show corresponding content
-                const tabName = tab.getAttribute('data-tab');
-                
-                // Map hyphenated tab names to camelCase IDs
-                let tabContentId;
-                if (tabName === 'all-records') {
-                    tabContentId = 'allRecordsTab';
-                } else {
-                    tabContentId = `${tabName}Tab`;
-                }
-                
-                const tabContent = document.getElementById(tabContentId);
-                if (tabContent) {
-                    tabContent.classList.add('active');
-                    if (tabName === 'all-records') {
-                        tabContent.style.display = 'block';
-                    }
-                } else {
-                    console.error(`Tab content ${tabContentId} not found`);
-                }
+        document.addEventListener('DOMContentLoaded', function() {
+            const jsonInput = document.getElementById('jsonInput');
+            const analyzeBtn = document.getElementById('analyzeBtn');
+            const clearBtn = document.getElementById('clearBtn');
+            const jsonExample = document.getElementById('jsonExample');
+            const results = document.getElementById('results');
+            const loader = document.getElementById('loader');
+            const jsonError = document.getElementById('jsonError');
+            
+            // Export buttons
+            const exportDiscrepanciesCSV = document.getElementById('exportDiscrepanciesCSV');
+            const exportDiscrepanciesJSON = document.getElementById('exportDiscrepanciesJSON');
+            const exportAllDataCSV = document.getElementById('exportAllDataCSV');
+            const exportAllDataJSON = document.getElementById('exportAllDataJSON');
+            
+            // Store the processed data
+            let processedData = {
+                discrepancies: [],
+                allRecords: [],
+                summary: {}
+            };
+            
+            // Load example data
+            jsonExample.addEventListener('click', function() {
+                // Example data is provided as a string
+                fetch(window.location.href)
+                    .then(response => response.text())
+                    .then(text => {
+                        // Find the example JSON in the current page
+                        const startMarker = "Here's an example JSON {";
+                        const startIdx = text.indexOf(startMarker);
+                        if (startIdx !== -1) {
+                            let jsonText = text.substring(startIdx + startMarker.length - 1);
+                            // Find the end of the JSON by looking for the end of data array
+                            const endMarker = '}';
+                            const endIdx = jsonText.lastIndexOf(endMarker);
+                            if (endIdx !== -1) {
+                                jsonText = jsonText.substring(0, endIdx + 1);
+                                jsonInput.value = jsonText;
+                            }
+                        }
+                    })
+                    .catch(error => {
+                        console.error('Error loading example data:', error);
+                    });
             });
-        });
-
-        function handleFileUpload(event) {
-            const file = event.target.files[0];
-            if (!file) return;
             
-            const reader = new FileReader();
-            reader.onload = function(e) {
-                try {
-                    // Try to parse as JSON to validate
-                    JSON.parse(e.target.result);
-                    jsonInput.value = e.target.result;
-                    hideError();
-                } catch (err) {
-                    showError("Invalid JSON file. Please check the file format.");
+            // Clear input and results
+            clearBtn.addEventListener('click', function() {
+                jsonInput.value = '';
+                results.style.display = 'none';
+                jsonError.style.display = 'none';
+                processedData = {
+                    discrepancies: [],
+                    allRecords: [],
+                    summary: {}
+                };
+            });
+            
+            // Analyze button click handler
+            analyzeBtn.addEventListener('click', function() {
+                const jsonString = jsonInput.value.trim();
+                if (!jsonString) {
+                    showError('Please enter JSON data.');
+                    return;
                 }
-            };
-            reader.onerror = function() {
-                showError("Error reading file.");
-            };
-            reader.readAsText(file);
-        }
-
-        function loadSampleData() {
-            jsonInput.value = JSON.stringify(sampleData, null, 2);
-            hideError();
-        }
-
-        function clearData() {
-            jsonInput.value = '';
-            discrepancyList.innerHTML = '';
-            allRecordsList.innerHTML = '';
-            results.style.display = 'none';
-            hideError();
-            jsonFile.value = '';
-        }
-
-        function showError(message) {
-            errorElement.textContent = message;
-            errorElement.style.display = 'block';
-        }
-
-        function hideError() {
-            errorElement.style.display = 'none';
-        }
-
-        function analyzeData() {
-            // Clear previous results
-            discrepancyList.innerHTML = '';
-            allRecordsList.innerHTML = '';
+                
+                // Show loader
+                loader.style.display = 'block';
+                results.style.display = 'none';
+                jsonError.style.display = 'none';
+                
+                // Process data asynchronously to prevent UI blocking
+                setTimeout(() => {
+                    try {
+                        const jsonData = JSON.parse(jsonString);
+                        processData(jsonData);
+                        displayResults();
+                        
+                        // Hide loader and show results
+                        loader.style.display = 'none';
+                        results.style.display = 'block';
+                    } catch (error) {
+                        loader.style.display = 'none';
+                        showError('Invalid JSON data. Please check your input and try again. Error: ' + error.message);
+                    }
+                }, 100);
+            });
             
-            // Show spinner
-            spinner.style.display = 'block';
-            hideError();
-            
-            // Get JSON data
-            const jsonData = jsonInput.value.trim();
-            if (!jsonData) {
-                spinner.style.display = 'none';
-                showError("Please enter JSON data or upload a file.");
-                return;
-            }
-            
-            // Parse JSON
-            let data;
-            try {
-                data = JSON.parse(jsonData);
-            } catch (error) {
-                spinner.style.display = 'none';
-                showError("Invalid JSON. Please check your data format.");
-                return;
-            }
-            
-            // Check if data has the expected structure
-            if (!data.data || !Array.isArray(data.data)) {
-                spinner.style.display = 'none';
-                showError("Invalid JSON structure. Expected a 'data' array.");
-                return;
-            }
-            
-            // Process data asynchronously to avoid blocking UI
-            setTimeout(() => {
-                processData(data);
-                spinner.style.display = 'none';
-                results.style.display = 'block';
-            }, 100);
-        }
-
-        function processData(data) {
-            const records = data.data;
-            const discrepancies = [];
-            
-            // Clear previous results
-            discrepancyList.innerHTML = '';
-            allRecordsList.innerHTML = '';
-            
-            // Process each record
-            records.forEach(record => {
-                try {
-                    const lineItemTotal = record.total;
-                    const activityTotal = record.activity ? record.activity.total : 0;
-                    const difference = Math.abs(lineItemTotal - activityTotal);
-                    
-                    // Check if there's a discrepancy
-                    const hasDiscrepancy = lineItemTotal !== activityTotal;
-                    
-                    // Format data for display
-                    const recordData = {
+            // Process the JSON data
+            function processData(jsonData) {
+                const records = jsonData.data || [];
+                
+                // Reset processed data
+                processedData = {
+                    discrepancies: [],
+                    allRecords: [],
+                    summary: {
+                        totalRecords: records.length,
+                        includedRecords: 0,
+                        excludedRecords: 0,
+                        discrepancyCount: 0,
+                        nullActivityCount: 0,
+                        billStates: {},
+                        billTypes: {},
+                        matterCounts: {}
+                    }
+                };
+                
+                // Process each record
+                records.forEach(record => {
+                    // Create a processed record object with relevant information
+                    const processedRecord = {
                         id: record.id,
-                        activityId: record.activity ? record.activity.id : 'N/A',
-                        billNumber: record.bill ? record.bill.number : 'N/A',
-                        billState: record.bill ? record.bill.state : 'N/A',
-                        matter: record.activity && record.activity.matter ? record.activity.matter.display_number : 'N/A',
                         price: record.price,
                         quantity: record.quantity,
-                        lineItemTotal: lineItemTotal,
-                        activityTotal: activityTotal,
-                        difference: difference,
-                        hasDiscrepancy: hasDiscrepancy
+                        sub_total: record.sub_total,
+                        total: record.total,
+                        bill: {
+                            id: record.bill?.id,
+                            number: record.bill?.number,
+                            state: record.bill?.state,
+                            type: record.bill?.type
+                        },
+                        activity: record.activity ? {
+                            id: record.activity.id,
+                            matter_id: record.activity.matter?.id,
+                            matter_display_number: record.activity.matter?.display_number,
+                            price: record.activity.price,
+                            quantity: record.activity.quantity,
+                            total: record.activity.total
+                        } : null,
+                        has_discrepancy: false,
+                        discrepancy_amount: 0,
+                        excluded: false
                     };
                     
-                    // Add to all records table FIRST
-                    addRecordToTable(allRecordsList, recordData);
+                    // Check if the record should be excluded (bill state is "deleted" or "void")
+                    const isExcluded = record.bill && (record.bill.state === "deleted" || record.bill.state === "void");
+                    processedRecord.excluded = isExcluded;
                     
-                    // Add to discrepancies if there's a mismatch
-                    if (hasDiscrepancy) {
-                        discrepancies.push(recordData);
+                    if (isExcluded) {
+                        processedData.summary.excludedRecords++;
+                    } else {
+                        processedData.summary.includedRecords++;
+                        
+                        // Check for discrepancies between sub_total and activity.total
+                        if (record.activity === null) {
+                            processedRecord.activity_total = null;
+                            processedData.summary.nullActivityCount++;
+                        } else {
+                            processedRecord.activity_total = record.activity.total;
+                            
+                            // Calculate discrepancy if activity is not null
+                            if (record.sub_total !== record.activity.total) {
+                                processedRecord.has_discrepancy = true;
+                                processedRecord.discrepancy_amount = record.sub_total - (record.activity.total || 0);
+                                processedData.discrepancies.push(processedRecord);
+                                processedData.summary.discrepancyCount++;
+                            }
+                        }
                     }
-                } catch (error) {
-                    console.error("Error processing record:", error, record);
-                }
-            });
-            
-            // Update summaries
-            updateSummaries(discrepancies, records);
-            
-            // Sort discrepancies by difference (largest first)
-            discrepancies.sort((a, b) => b.difference - a.difference);
-            
-            // Add discrepancies to discrepancy table
-            discrepancies.forEach(discrepancy => {
-                addRecordToTable(discrepancyList, discrepancy);
-            });
-            
-            // Display message if no discrepancies found
-            if (discrepancies.length === 0) {
-                discrepancyList.innerHTML = '<tr><td colspan="10" class="no-discrepancies">No discrepancies found. All records match.</td></tr>';
+                    
+                    // Add to all records
+                    processedData.allRecords.push(processedRecord);
+                    
+                    // Update summary statistics
+                    if (record.bill) {
+                        // Count bill states
+                        if (record.bill.state) {
+                            processedData.summary.billStates[record.bill.state] = 
+                                (processedData.summary.billStates[record.bill.state] || 0) + 1;
+                        }
+                        
+                        // Count bill types
+                        if (record.bill.type) {
+                            processedData.summary.billTypes[record.bill.type] = 
+                                (processedData.summary.billTypes[record.bill.type] || 0) + 1;
+                        }
+                    }
+                    
+                    // Count matters
+                    if (record.activity && record.activity.matter && record.activity.matter.id) {
+                        const matterId = record.activity.matter.id;
+                        processedData.summary.matterCounts[matterId] = 
+                            (processedData.summary.matterCounts[matterId] || 0) + 1;
+                    }
+                });
             }
             
-            // Make sure both tabs are properly initialized
-            document.getElementById('discrepanciesTab').classList.add('active');
-            document.getElementById('allRecordsTab').classList.remove('active');
-            document.querySelector('.tab[data-tab="discrepancies"]').classList.add('active');
-            document.querySelector('.tab[data-tab="all-records"]').classList.remove('active');
-        }
-
-        function updateSummaries(discrepancies, allRecords) {
-            const totalRecords = allRecords.length;
-            const discrepancyCount = discrepancies.length;
-            const discrepancyPercent = totalRecords > 0 ? ((discrepancyCount / totalRecords) * 100).toFixed(2) : 0;
-            
-            const totalAffected = discrepancies.reduce((sum, record) => sum + record.difference, 0);
-            
-            discrepancySummary.innerHTML = `
-                <strong>${discrepancyCount}</strong> discrepancies found out of <strong>${totalRecords}</strong> records (${discrepancyPercent}%).<br>
-                Total difference amount: <strong>$${totalAffected.toFixed(2)}</strong>
-            `;
-            
-            recordsSummary.innerHTML = `
-                <strong>${totalRecords}</strong> total records analyzed.<br>
-                <strong>${discrepancyCount}</strong> records (${discrepancyPercent}%) have discrepancies between line item total and activity total.
-            `;
-        }
-
-        function addRecordToTable(tableBody, record) {
-            const row = document.createElement('tr');
-            if (record.hasDiscrepancy) {
-                row.classList.add('highlighted');
-            }
-            
-            row.innerHTML = `
-                <td>${record.id}</td>
-                <td>${record.activityId}</td>
-                <td>${record.billNumber}</td>
-                <td>${record.billState}</td>
-                <td>${record.matter}</td>
-                <td>${record.price.toFixed(2)}</td>
-                <td>${record.quantity}</td>
-                <td>${record.lineItemTotal.toFixed(2)}</td>
-                <td>${record.activityTotal.toFixed(2)}</td>
-                <td>${record.difference.toFixed(2)}</td>
-            `;
-            
-            tableBody.appendChild(row);
-        }
-
-        function exportToCSV() {
-            // Determine which tab is active
-            const activeTab = document.querySelector('.tab.active').getAttribute('data-tab');
-            const tableBody = activeTab === 'discrepancies' ? discrepancyList : allRecordsList;
-            const fileName = activeTab === 'discrepancies' ? 'clio-discrepancies.csv' : 'clio-all-records.csv';
-            
-            // Create CSV header
-            let csv = 'Line Item ID,Activity ID,Bill Number,Bill State,Matter,Line Item Price,Line Item Quantity,Line Item Total,Activity Total,Difference\n';
-            
-            // Get all rows from the table
-            const rows = tableBody.querySelectorAll('tr');
-            
-            // Convert each row to CSV
-            rows.forEach(row => {
-                // Get all cells in the row
-                const cells = row.querySelectorAll('td');
+            // Display the results in the UI
+            function displayResults() {
+                // Display discrepancy summary
+                const discrepancySummary = document.getElementById('discrepancySummary');
+                discrepancySummary.innerHTML = `
+                    <h3>Discrepancy Results</h3>
+                    <p>Found <strong>${processedData.discrepancies.length}</strong> records with discrepancies between 
+                       <code>line_item.sub_total</code> and <code>line_item_activity.total</code> out of 
+                       <strong>${processedData.summary.includedRecords}</strong> included records 
+                       (excluding "deleted" and "void" bill states).</p>
+                    <p><strong>Note:</strong> ${processedData.summary.excludedRecords} records were excluded from discrepancy analysis due to "deleted" or "void" bill states.</p>
+                `;
                 
-                // Check if this is a "no discrepancies" message row
-                if (cells.length === 1 && cells[0].classList.contains('no-discrepancies')) {
-                    return; // Skip this row
+                // Display discrepancy table
+                const discrepancyResults = document.getElementById('discrepancyResults');
+                if (processedData.discrepancies.length > 0) {
+                    discrepancyResults.innerHTML = generateTable(processedData.discrepancies, true);
+                } else {
+                    discrepancyResults.innerHTML = '<div class="success">No discrepancies found!</div>';
                 }
                 
-                // Get text from each cell and add to CSV
-                const rowData = Array.from(cells).map(cell => {
-                    // Remove $ signs and commas for numeric values
-                    let text = cell.textContent.trim();
-                    if (text.startsWith('$')) {
-                        text = text.substring(1);
-                    }
-                    // Quote the text to handle commas
-                    return `"${text}"`;
-                }).join(',');
+                // Display all data summary
+                const allDataSummary = document.getElementById('allDataSummary');
+                allDataSummary.innerHTML = `
+                    <h3>All Records</h3>
+                    <p>Showing all <strong>${processedData.allRecords.length}</strong> records. 
+                       Records with discrepancies are highlighted.</p>
+                    <p><strong>Included Records:</strong> ${processedData.summary.includedRecords} | 
+                       <strong>Excluded Records (deleted/void):</strong> ${processedData.summary.excludedRecords}</p>
+                `;
                 
-                csv += rowData + '\n';
+                // Display all data table
+                const allDataResults = document.getElementById('allDataResults');
+                allDataResults.innerHTML = generateTable(processedData.allRecords, false);
+                
+                // Display summary tab content
+                const summaryContent = document.getElementById('summaryContent');
+                summaryContent.innerHTML = generateSummary();
+            }
+            
+                            // Generate table HTML
+            function generateTable(records, isDiscrepancyTable) {
+                if (records.length === 0) {
+                    return '<div class="success">No records to display.</div>';
+                }
+                
+                let tableHtml = `
+                    <div id="dataViewer">
+                        <table class="discrepancy-table">
+                            <thead>
+                                <tr>
+                                    <th>Line Item ID</th>
+                                    <th>Bill Info</th>
+                                    <th>Quantity</th>
+                                    <th>Price</th>
+                                    <th>Subtotal</th>
+                                    <th>Total</th>
+                                    <th>Activity ID</th>
+                                    <th>Matter ID</th>
+                                    <th>Activity Total</th>
+                                    <th>Discrepancy</th>
+                                    <th>Status</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                `;
+                
+                records.forEach(record => {
+                    const rowClass = record.has_discrepancy ? 'highlight' : '';
+                    const discrepancyClass = record.discrepancy_amount > 0 ? 'money-positive' : 'money-negative';
+                    
+                    // Format currency
+                    const formatCurrency = (value) => {
+                        if (value === null || value === undefined) return 'null';
+                        return value.toLocaleString('en-US', {
+                            minimumFractionDigits: 2,
+                            maximumFractionDigits: 2
+                        });
+                    };
+                    
+                    // Bill state indicator
+                    let stateClass = '';
+                    switch(record.bill.state) {
+                        case 'paid': stateClass = 'status-paid'; break;
+                        case 'awaiting_payment': stateClass = 'status-awaiting'; break;
+                        case 'deleted': stateClass = 'status-deleted'; break;
+                        case 'void': stateClass = 'status-void'; break;
+                        case 'draft': stateClass = 'status-draft'; break;
+                    }
+                    
+                    tableHtml += `
+                        <tr class="${rowClass}">
+                            <td>${record.id}</td>
+                            <td>
+                                <span class="status-indicator ${stateClass}"></span>
+                                <span class="bill-info">#${record.bill.number}</span>
+                                <span class="bill-info">${record.bill.state}</span>
+                                <span class="bill-info">${record.bill.type}</span>
+                            </td>
+                            <td>${record.quantity}</td>
+                            <td>${formatCurrency(record.price)}</td>
+                            <td>${formatCurrency(record.sub_total)}</td>
+                            <td>${formatCurrency(record.total)}</td>
+                            <td>${record.activity ? record.activity.id : 'null'}</td>
+                            <td>${record.activity ? (record.activity.matter_id || 'null') : 'null'}</td>
+                            <td>${formatCurrency(record.activity_total)}</td>
+                            <td class="${discrepancyClass}">${record.has_discrepancy ? formatCurrency(record.discrepancy_amount) : '-'}</td>
+                            <td>${record.excluded ? '<span style="color: #dc3545;">Excluded</span>' : '<span style="color: #28a745;">Included</span>'}</td>
+                        </tr>
+                    `;
+                });
+                
+                tableHtml += `
+                            </tbody>
+                        </table>
+                    </div>
+                `;
+                
+                return tableHtml;
+            }
+            
+            // Generate summary statistics
+            function generateSummary() {
+                const { totalRecords, discrepancyCount, nullActivityCount, billStates, billTypes, matterCounts } = processedData.summary;
+                
+                // Sort matters by count (descending)
+                const sortedMatters = Object.entries(matterCounts)
+                    .sort((a, b) => b[1] - a[1])
+                    .slice(0, 10); // Top 10 matters
+                
+                let matterList = '';
+                sortedMatters.forEach(([matter, count]) => {
+                    matterList += `<li>${matter}: ${count} records</li>`;
+                });
+                
+                // Bill states
+                let billStatesList = '';
+                Object.entries(billStates).forEach(([state, count]) => {
+                    const stateClass = 
+                        state === 'paid' ? 'status-paid' : 
+                        state === 'awaiting_payment' ? 'status-awaiting' : 
+                        state === 'deleted' ? 'status-deleted' : 
+                        state === 'void' ? 'status-void' : 
+                        state === 'draft' ? 'status-draft' : '';
+                    
+                    billStatesList += `
+                        <li>
+                            <span class="status-indicator ${stateClass}"></span>
+                            ${state}: ${count} records (${(count/totalRecords*100).toFixed(1)}%)
+                        </li>
+                    `;
+                });
+                
+                // Bill types
+                let billTypesList = '';
+                Object.entries(billTypes).forEach(([type, count]) => {
+                    billTypesList += `<li>${type}: ${count} records (${(count/totalRecords*100).toFixed(1)}%)</li>`;
+                });
+                
+                return `
+                    <h3>Data Summary</h3>
+                    
+                    <div class="results-summary">
+                        <p><strong>Total Records:</strong> ${totalRecords}</p>
+                        <p><strong>Included Records:</strong> ${processedData.summary.includedRecords} (${(processedData.summary.includedRecords/totalRecords*100).toFixed(1)}%)</p>
+                        <p><strong>Excluded Records (deleted/void):</strong> ${processedData.summary.excludedRecords} (${(processedData.summary.excludedRecords/totalRecords*100).toFixed(1)}%)</p>
+                        <p><strong>Records with Discrepancies:</strong> ${discrepancyCount} (${(discrepancyCount/processedData.summary.includedRecords*100).toFixed(1)}% of included records)</p>
+                        <p><strong>Records with Null Activity:</strong> ${nullActivityCount} (${(nullActivityCount/processedData.summary.includedRecords*100).toFixed(1)}% of included records)</p>
+                    </div>
+                    
+                    <h4>Bill States</h4>
+                    <ul>${billStatesList}</ul>
+                    
+                    <h4>Bill Types</h4>
+                    <ul>${billTypesList}</ul>
+                    
+                    <h4>Top Matters</h4>
+                    <ul>${matterList}</ul>
+                `;
+            }
+            
+            // Export to CSV
+            function exportToCSV(data, filename) {
+                // Extract all possible headers
+                const headers = [
+                    'id', 'price', 'quantity', 'sub_total', 'total', 
+                    'bill.id', 'bill.number', 'bill.state', 'bill.type',
+                    'activity.id', 'activity.matter_id', 'activity.price', 
+                    'activity.quantity', 'activity.total', 'activity_total',
+                    'has_discrepancy', 'discrepancy_amount', 'excluded'
+                ];
+                
+                // Create CSV content
+                let csvContent = headers.join(',') + '\n';
+                
+                data.forEach(record => {
+                    const values = headers.map(header => {
+                        const parts = header.split('.');
+                        let value;
+                        
+                        if (parts.length === 1) {
+                            value = record[parts[0]];
+                        } else if (parts.length === 2) {
+                            const obj = record[parts[0]];
+                            value = obj ? obj[parts[1]] : '';
+                        }
+                        
+                        // Format the value for CSV
+                        if (value === null || value === undefined) {
+                            return '';
+                        } else if (typeof value === 'string' && value.includes(',')) {
+                            return `"${value}"`;
+                        } else {
+                            return value;
+                        }
+                    });
+                    
+                    csvContent += values.join(',') + '\n';
+                });
+                
+                // Download the CSV file
+                const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+                const url = URL.createObjectURL(blob);
+                
+                const link = document.createElement('a');
+                link.setAttribute('href', url);
+                link.setAttribute('download', filename);
+                link.style.visibility = 'hidden';
+                
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+            }
+            
+            // Export to JSON
+            function exportToJSON(data, filename) {
+                const jsonString = JSON.stringify(data, null, 2);
+                const blob = new Blob([jsonString], { type: 'application/json' });
+                const url = URL.createObjectURL(blob);
+                
+                const link = document.createElement('a');
+                link.setAttribute('href', url);
+                link.setAttribute('download', filename);
+                link.style.visibility = 'hidden';
+                
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+            }
+            
+            // Export button handlers
+            exportDiscrepanciesCSV.addEventListener('click', function() {
+                exportToCSV(processedData.discrepancies, 'discrepancies.csv');
             });
             
-            // Create blob and download
-            const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-            const url = URL.createObjectURL(blob);
-            const link = document.createElement('a');
-            link.setAttribute('href', url);
-            link.setAttribute('download', fileName);
-            link.style.visibility = 'hidden';
-            document.body.appendChild(link);
-            link.click();
-            document.body.removeChild(link);
+            exportDiscrepanciesJSON.addEventListener('click', function() {
+                exportToJSON(processedData.discrepancies, 'discrepancies.json');
+            });
+            
+            exportAllDataCSV.addEventListener('click', function() {
+                exportToCSV(processedData.allRecords, 'all_records.csv');
+            });
+            
+            exportAllDataJSON.addEventListener('click', function() {
+                exportToJSON(processedData.allRecords, 'all_records.json');
+            });
+            
+            // Show error message
+            function showError(message) {
+                jsonError.textContent = message;
+                jsonError.style.display = 'block';
+                loader.style.display = 'none';
+                results.style.display = 'none';
+            }
+        });
+        
+        // Tab switching functionality
+        function openTab(evt, tabName) {
+            // Hide all tab content
+            const tabcontent = document.getElementsByClassName("tabcontent");
+            for (let i = 0; i < tabcontent.length; i++) {
+                tabcontent[i].style.display = "none";
+            }
+            
+            // Remove active class from all tab buttons
+            const tablinks = document.getElementsByClassName("tablinks");
+            for (let i = 0; i < tablinks.length; i++) {
+                tablinks[i].className = tablinks[i].className.replace(" active", "");
+            }
+            
+            // Show the selected tab and add active class to the button
+            document.getElementById(tabName).style.display = "block";
+            evt.currentTarget.className += " active";
         }
     </script>
 </body>

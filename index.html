@@ -210,6 +210,7 @@
         
         <div class="results-summary">
             <p><strong>How to get your data:</strong> Make a bulk request to <code>api/v4/line_items?fields=id,price,quantity,bill{id,number,state,type},sub_total,total,activity{id,matter{id},price,quantity,total}</code> to grab all existing line items.</p>
+            <p><span id="jsonExample">Load example data</span></p>
         </div>
         
         <div class="input-area">
@@ -231,9 +232,9 @@
         
         <div id="results" style="display: none;">
             <div class="tab">
-                <button class="tablinks active" onclick="openTab(event, 'discrepancyTab')">Discrepancies</button>
-                <button class="tablinks" onclick="openTab(event, 'allDataTab')">All Records</button>
-                <button class="tablinks" onclick="openTab(event, 'summaryTab')">Summary</button>
+                <button class="tablinks active" id="discrepancyTabBtn">Discrepancies</button>
+                <button class="tablinks" id="allDataTabBtn">All Records</button>
+                <button class="tablinks" id="summaryTabBtn">Summary</button>
             </div>
             
             <div id="discrepancyTab" class="tabcontent" style="display: block;">
@@ -261,7 +262,9 @@
     </div>
     
     <script>
+        // Wait for DOM to be fully loaded
         document.addEventListener('DOMContentLoaded', function() {
+            // Get DOM elements
             const jsonInput = document.getElementById('jsonInput');
             const analyzeBtn = document.getElementById('analyzeBtn');
             const clearBtn = document.getElementById('clearBtn');
@@ -270,11 +273,56 @@
             const loader = document.getElementById('loader');
             const jsonError = document.getElementById('jsonError');
             
+            // Tab buttons
+            const discrepancyTabBtn = document.getElementById('discrepancyTabBtn');
+            const allDataTabBtn = document.getElementById('allDataTabBtn');
+            const summaryTabBtn = document.getElementById('summaryTabBtn');
+            
             // Export buttons
             const exportDiscrepanciesCSV = document.getElementById('exportDiscrepanciesCSV');
             const exportDiscrepanciesJSON = document.getElementById('exportDiscrepanciesJSON');
             const exportAllDataCSV = document.getElementById('exportAllDataCSV');
             const exportAllDataJSON = document.getElementById('exportAllDataJSON');
+            
+            // Tab switching function
+            function openTab(tabName) {
+                // Hide all tab content
+                const tabcontent = document.getElementsByClassName("tabcontent");
+                for (let i = 0; i < tabcontent.length; i++) {
+                    tabcontent[i].style.display = "none";
+                }
+                
+                // Remove active class from all tab buttons
+                const tablinks = document.getElementsByClassName("tablinks");
+                for (let i = 0; i < tablinks.length; i++) {
+                    tablinks[i].className = tablinks[i].className.replace(" active", "");
+                }
+                
+                // Show the selected tab and add active class to the button
+                document.getElementById(tabName).style.display = "block";
+                
+                // Add active class to the clicked button
+                if (tabName === "discrepancyTab") {
+                    discrepancyTabBtn.className += " active";
+                } else if (tabName === "allDataTab") {
+                    allDataTabBtn.className += " active";
+                } else if (tabName === "summaryTab") {
+                    summaryTabBtn.className += " active";
+                }
+            }
+            
+            // Add event listeners for tabs
+            discrepancyTabBtn.addEventListener('click', function() {
+                openTab('discrepancyTab');
+            });
+            
+            allDataTabBtn.addEventListener('click', function() {
+                openTab('allDataTab');
+            });
+            
+            summaryTabBtn.addEventListener('click', function() {
+                openTab('summaryTab');
+            });
             
             // Store the processed data
             let processedData = {
@@ -285,27 +333,80 @@
             
             // Load example data
             jsonExample.addEventListener('click', function() {
-                // Example data is provided as a string
-                fetch(window.location.href)
-                    .then(response => response.text())
-                    .then(text => {
-                        // Find the example JSON in the current page
-                        const startMarker = "Here's an example JSON {";
-                        const startIdx = text.indexOf(startMarker);
-                        if (startIdx !== -1) {
-                            let jsonText = text.substring(startIdx + startMarker.length - 1);
-                            // Find the end of the JSON by looking for the end of data array
-                            const endMarker = '}';
-                            const endIdx = jsonText.lastIndexOf(endMarker);
-                            if (endIdx !== -1) {
-                                jsonText = jsonText.substring(0, endIdx + 1);
-                                jsonInput.value = jsonText;
+                // Simple example data for demonstration
+                const exampleData = {
+                    data: [
+                        {
+                            id: "1",
+                            price: 100.00,
+                            quantity: 2,
+                            sub_total: 200.00,
+                            total: 200.00,
+                            bill: {
+                                id: "bill_1",
+                                number: "B001",
+                                state: "paid",
+                                type: "invoice"
+                            },
+                            activity: {
+                                id: "act_1",
+                                matter: {
+                                    id: "matter_1"
+                                },
+                                price: 100.00,
+                                quantity: 2,
+                                total: 200.00
+                            }
+                        },
+                        {
+                            id: "2",
+                            price: 150.00,
+                            quantity: 1,
+                            sub_total: 150.00,
+                            total: 150.00,
+                            bill: {
+                                id: "bill_2",
+                                number: "B002",
+                                state: "awaiting_payment",
+                                type: "invoice"
+                            },
+                            activity: {
+                                id: "act_2",
+                                matter: {
+                                    id: "matter_2"
+                                },
+                                price: 150.00,
+                                quantity: 1,
+                                total: 140.00  // Discrepancy here
+                            }
+                        },
+                        {
+                            id: "3",
+                            price: 75.00,
+                            quantity: 3,
+                            sub_total: 225.00,
+                            total: 225.00,
+                            bill: {
+                                id: "bill_3",
+                                number: "B003",
+                                state: "deleted",
+                                type: "credit_note"
+                            },
+                            activity: {
+                                id: "act_3",
+                                matter: {
+                                    id: "matter_1"
+                                },
+                                price: 75.00,
+                                quantity: 3,
+                                total: 225.00
                             }
                         }
-                    })
-                    .catch(error => {
-                        console.error('Error loading example data:', error);
-                    });
+                    ]
+                };
+                
+                // Set example data in the textarea
+                jsonInput.value = JSON.stringify(exampleData, null, 2);
             });
             
             // Clear input and results
@@ -491,7 +592,7 @@
                 summaryContent.innerHTML = generateSummary();
             }
             
-                            // Generate table HTML
+            // Generate table HTML
             function generateTable(records, isDiscrepancyTable) {
                 if (records.length === 0) {
                     return '<div class="success">No records to display.</div>';
@@ -533,12 +634,14 @@
                     
                     // Bill state indicator
                     let stateClass = '';
-                    switch(record.bill.state) {
-                        case 'paid': stateClass = 'status-paid'; break;
-                        case 'awaiting_payment': stateClass = 'status-awaiting'; break;
-                        case 'deleted': stateClass = 'status-deleted'; break;
-                        case 'void': stateClass = 'status-void'; break;
-                        case 'draft': stateClass = 'status-draft'; break;
+                    if (record.bill && record.bill.state) {
+                        switch(record.bill.state) {
+                            case 'paid': stateClass = 'status-paid'; break;
+                            case 'awaiting_payment': stateClass = 'status-awaiting'; break;
+                            case 'deleted': stateClass = 'status-deleted'; break;
+                            case 'void': stateClass = 'status-void'; break;
+                            case 'draft': stateClass = 'status-draft'; break;
+                        }
                     }
                     
                     tableHtml += `
@@ -546,9 +649,10 @@
                             <td>${record.id}</td>
                             <td>
                                 <span class="status-indicator ${stateClass}"></span>
-                                <span class="bill-info">#${record.bill.number}</span>
-                                <span class="bill-info">${record.bill.state}</span>
-                                <span class="bill-info">${record.bill.type}</span>
+                                <span class="bill-info" title="Bill ID: ${record.bill?.id || '-'}">#${record.bill?.number || '-'}</span>
+                                <span class="bill-info">${record.bill?.state || '-'}</span>
+                                <span class="bill-info">${record.bill?.type || '-'}</span>
+                                <div><small>ID: ${record.bill?.id || '-'}</small></div>
                             </td>
                             <td>${record.quantity}</td>
                             <td>${formatCurrency(record.price)}</td>
@@ -726,25 +830,6 @@
                 results.style.display = 'none';
             }
         });
-        
-        // Tab switching functionality
-        function openTab(evt, tabName) {
-            // Hide all tab content
-            const tabcontent = document.getElementsByClassName("tabcontent");
-            for (let i = 0; i < tabcontent.length; i++) {
-                tabcontent[i].style.display = "none";
-            }
-            
-            // Remove active class from all tab buttons
-            const tablinks = document.getElementsByClassName("tablinks");
-            for (let i = 0; i < tablinks.length; i++) {
-                tablinks[i].className = tablinks[i].className.replace(" active", "");
-            }
-            
-            // Show the selected tab and add active class to the button
-            document.getElementById(tabName).style.display = "block";
-            evt.currentTarget.className += " active";
-        }
     </script>
 </body>
 </html>
